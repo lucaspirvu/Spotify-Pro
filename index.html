@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#121212" />
+  <title>Spotify Pro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #121212; color: #fff; padding-bottom: 130px; user-select: none; }
+    header { padding: 20px 16px 10px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: rgba(18,18,18,0.95); z-index: 10; }
+    header h1 { font-size: 24px; font-weight: 800; color: #1DB954; }
+    .btn-add { background: #1DB954; color: #000; border: none; padding: 8px 14px; border-radius: 20px; font-weight: 700; font-size: 13px; cursor: pointer; }
+    .search-box { padding: 0 16px 12px; }
+    .search-box input { width: 100%; padding: 10px 14px; border-radius: 8px; border: none; background: #282828; color: #fff; font-size: 14px; outline: none; }
+    .song-list { padding: 0 16px; display: flex; flex-direction: column; gap: 10px; }
+    .song-item { display: flex; align-items: center; justify-content: space-between; background: #181818; padding: 10px; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+    .song-item:active, .song-item.active { background: #282828; border-left: 4px solid #1DB954; }
+    .song-info { display: flex; align-items: center; gap: 12px; overflow: hidden; }
+    .cover { width: 48px; height: 48px; border-radius: 6px; background: linear-gradient(135deg, #1DB954, #191414); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; flex-shrink: 0; }
+    .meta { overflow: hidden; }
+    .title { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .artist { font-size: 12px; color: #b3b3b3; margin-top: 2px; }
+    .del-btn { background: none; border: none; color: #777; font-size: 18px; padding: 5px 10px; cursor: pointer; }
+    .player { position: fixed; bottom: 0; left: 0; right: 0; background: #181818; border-top: 1px solid #282828; padding: 12px 16px 20px; z-index: 20; }
+    .now-playing { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .np-title { font-size: 14px; font-weight: 700; color: #1DB954; }
+    .np-artist { font-size: 12px; color: #b3b3b3; }
+    .progress-wrap { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #b3b3b3; margin-bottom: 10px; }
+    input[type="range"] { flex: 1; accent-color: #1DB954; height: 4px; }
+    .controls { display: flex; justify-content: center; align-items: center; gap: 24px; }
+    .ctrl-btn { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; }
+    .ctrl-btn.active { color: #1DB954; }
+    .play-btn { background: #fff; color: #000; width: 44px; height: 44px; border-radius: 50%; font-size: 18px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: none; cursor: pointer; }
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 30; align-items: center; justify-content: center; padding: 20px; }
+    .modal.open { display: flex; }
+    .modal-box { background: #242424; padding: 20px; border-radius: 12px; width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
+    .modal-box h2 { font-size: 18px; }
+    .modal-box input[type="text"] { padding: 10px; border-radius: 6px; border: none; background: #121212; color: #fff; }
+    .file-label { background: #333; padding: 12px; text-align: center; border-radius: 6px; cursor: pointer; font-size: 13px; border: 1px dashed #1DB954; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+    .btn-cancel { background: transparent; color: #b3b3b3; border: none; padding: 8px 12px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Spotify Pro</h1>
+    <button class="btn-add" onclick="openModal()">+ Adaugă Piesă</button>
+  </header>
+
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="Caută melodie sau artist..." oninput="renderSongs()" />
+  </div>
+
+  <div class="song-list" id="songList"></div>
+
+  <div class="player">
+    <div class="now-playing">
+      <div>
+        <div class="np-title" id="npTitle">Alege o melodie</div>
+        <div class="np-artist" id="npArtist">Spotify Pro • Fără reclame</div>
+      </div>
+    </div>
+    <div class="progress-wrap">
+      <span id="curTime">0:00</span>
+      <input type="range" id="seekBar" value="0" min="0" max="100" oninput="seekAudio()" />
+      <span id="durTime">0:00</span>
+    </div>
+    <div class="controls">
+      <button class="ctrl-btn" id="shuffleBtn" onclick="toggleShuffle()">🔀</button>
+      <button class="ctrl-btn" onclick="prevSong()">⏮</button>
+      <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+      <button class="ctrl-btn" onclick="nextSong()">⏭</button>
+      <button class="ctrl-btn" id="repeatBtn" onclick="toggleRepeat()">🔁</button>
+    </div>
+  </div>
+
+  <div class="modal" id="addModal">
+    <div class="modal-box">
+      <h2>Adaugă muzică</h2>
+      <label class="file-label">
+        📁 Alege fișiere MP3 din telefon/PC
+        <input type="file" id="fileInput" accept="audio/*" multiple style="display:none" onchange="handleFiles(event)" />
+      </label>
+      <div style="text-align:center; font-size:12px; color:#888;">SAU prin link direct MP3</div>
+      <input type="text" id="songTitle" placeholder="Titlu melodie" />
+      <input type="text" id="songArtist" placeholder="Artist" />
+      <input type="text" id="songUrl" placeholder="Link direct .mp3 (ex: https://...)" />
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">Anulează</button>
+        <button class="btn-add" onclick="addUrlSong()">Salvează</button>
+      </div>
+    </div>
+  </div>
+
+  <audio id="audio"></audio>
+
+  <script>
+    let songs = JSON.parse(localStorage.getItem('sp_songs')) || [
+      { title: "Demo Chill Beat", artist: "Spotify Pro", url: "https://soundhelix.com" },
+      { title: "Night Drive Synth", artist: "Spotify Pro", url: "https://soundhelix.com" }
+    ];
+    let currentIndex = 0;
+    let isShuffle = false;
+    let isRepeat = false;
+
+    const audio = document.getElementById('audio');
+    const playBtn = document.getElementById('playBtn');
+    const seekBar = document.getElementById('seekBar');
+
+    function saveSongs() {
+      const saveable = songs.filter(s => !s.isLocal);
+      localStorage.setItem('sp_songs', JSON.stringify(saveable));
+    }
+
+    function renderSongs() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      const list = document.getElementById('songList');
+      list.innerHTML = '';
+      songs.forEach((s, i) => {
+        if (!s.title.toLowerCase().includes(q) && !s.artist.toLowerCase().includes(q)) return;
+        const div = document.createElement('div');
+        div.className = 'song-item' + (i === currentIndex ? ' active' : '');
+        div.innerHTML = `
+          <div class="song-info" onclick="playSong(${i})">
+            <div class="cover">🎵</div>
+            <div class="meta">
+              <div class="title">${s.title}</div>
+              <div class="artist">${s.artist}</div>
+            </div>
+          </div>
+          <button class="del-btn" onclick="deleteSong(${i})">✕</button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function playSong(index) {
+      currentIndex = index;
+      const s = songs[index];
+      if (!s) return;
+      audio.src = s.url;
+      document.getElementById('npTitle').innerText = s.title;
+      document.getElementById('npArtist').innerText = s.artist;
+      audio.play();
+      playBtn.innerText = '⏸';
+      renderSongs();
+    }
+
+    function togglePlay() {
+      if (!audio.src && songs.length) return playSong(0);
+      if (audio.paused) { audio.play(); playBtn.innerText = '⏸'; }
+      else { audio.pause(); playBtn.innerText = '▶'; }
+    }
+
+    function nextSong() {
+      if (!songs.length) return;
+      if (isShuffle) currentIndex = Math.floor(Math.random() * songs.length);
+      else currentIndex = (currentIndex + 1) % songs.length;
+      playSong(currentIndex);
+    }
+
+    function prevSong() {
+      if (!songs.length) return;
+      currentIndex = (currentIndex - 1 + songs.length) % songs.length;
+      playSong(currentIndex);
+    }
+
+    function toggleShuffle() {
+      isShuffle = !isShuffle;
+      document.getElementById('shuffleBtn').classList.toggle('active', isShuffle);
+    }
+
+    function toggleRepeat() {
+      isRepeat = !isRepeat;
+      document.getElementById('repeatBtn').classList.toggle('active', isRepeat);
+    }
+
+    audio.addEventListener('ended', () => {
+      if (isRepeat) { audio.currentTime = 0; audio.play(); }
+      else nextSong();
+    });
+
+    audio.addEventListener('timeupdate', () => {
+      if (!audio.duration) return;
+      seekBar.value = (audio.currentTime / audio.duration) * 100;
+      document.getElementById('curTime').innerText = fmt(audio.currentTime);
+      document.getElementById('durTime').innerText = fmt(audio.duration);
+    });
+
+    function seekAudio() {
+      if (audio.duration) audio.currentTime = (seekBar.value / 100) * audio.duration;
+    }
+
+    function fmt(sec) {
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function openModal() { document.getElementById('addModal').classList.add('open'); }
